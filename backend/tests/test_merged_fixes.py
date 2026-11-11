@@ -396,3 +396,29 @@ def test_badly_formatted_incident_date_is_rejected(client, monkeypatch):
     _classify(monkeypatch, "HIGH")
     r = c.post("/submit-complaint", json={"description": "Crane fell", "metadata": {"date": "31/01/2025"}})
     assert r.status_code == 422 and not fake.ops_for("grievances", "insert")
+
+
+# ── Chatbot: policy questions must not be forced into HIGH bribery complaints ──
+
+from backend.agent.nodes.classify_severity import check_deterministic_severity_guardrails
+
+
+@pytest.mark.parametrize("question", [
+    "what does the anti bribery policy say about gifts?",
+    "Is a 500 rupee gold coin gift allowed under the Anti Bribery and Anti Corruption Policy?",
+    "Is a gold coin worth INR 500 acceptable under the anti-bribery policy?",
+    "how do i use the whistleblower policy",
+    "can i give a gift of 500 gold",
+])
+def test_policy_questions_skip_bribery_guardrail(question):
+    assert check_deterministic_severity_guardrails(question) is None
+
+
+@pytest.mark.parametrize("report", [
+    "my site engineer demanded a bribe of 20000 to clear my bill",
+    "the vendor paid a kickback to our purchase manager",
+    "contractor is committing fraud with fake invoices",
+])
+def test_real_bribery_reports_still_high(report):
+    result = check_deterministic_severity_guardrails(report)
+    assert result is not None and result[1] == "HIGH"

@@ -10,6 +10,7 @@ Routing after classification:
 """
 
 import json
+import re
 import logging
 from backend.agent.state import GrievanceState
 
@@ -57,12 +58,28 @@ def check_deterministic_severity_guardrails(text: str) -> tuple[str, str, str] |
     if any(k in t for k in safety_indicators):
         return ("GRIEVANCE", "HIGH", "Deterministic guardrail: Physical site safety hazard or emergency detected.")
 
-    # Bribery / fraud / corruption → always HIGH GRIEVANCE
+    # Bribery / fraud / corruption → always HIGH GRIEVANCE.
+    # Policy names ("Anti Bribery and Anti Corruption Policy", "Whistleblower Policy") are
+    # removed first: the bot's own answers quote them, and the follow-up rewriter copies
+    # them into plain questions like "is a 500 rupee gift allowed under the Anti Bribery
+    # Policy?". Questions about what is allowed also skip this rule; the LLM below still
+    # treats real bribery reports as HIGH.
+    fraud_text = re.sub(r"\banti[\s-]*(bribery|corruption|fraud)\b", " ", t)
+    fraud_text = re.sub(
+        r"\b(whistle[\s-]*blower|whistle[\s-]*blowing|bribery|corruption|fraud)\s+(policy|policies|mechanism)\b",
+        " ", fraud_text,
+    )
+    asks_about_policy = any(q in t for q in [
+        "can i", "can we", "am i allowed", "are we allowed", "is it allowed", "allowed to",
+        "is it ok", "is it okay", "is it fine", "is that allowed", "permitted",
+        "what does the policy", "what is the policy", "policy say", "policy on",
+        "how do i report", "how to report", "how can i report", "where do i report",
+    ]) or is_informational
     fraud_indicators = [
         "bribery", "bribe", "kickback", "corruption", "demanded cash",
         "whistleblower", "fraud", "embezzlement",
     ]
-    if any(k in t for k in fraud_indicators):
+    if not asks_about_policy and any(k in fraud_text for k in fraud_indicators):
         return ("GRIEVANCE", "HIGH", "Deterministic guardrail: Bribery / fraud / corruption report detected.")
 
     return None
