@@ -287,8 +287,7 @@ function PolicyAssistant() {
       if (!res.ok) throw new Error("Backend error");
       const data = await res.json();
       let responseText = data.response || "Sorry, I couldn't find an answer.";
-      // The agent's reply usually carries its own Sources line already
-      if (data.sources?.length > 0 && !/\n\s*Sources:/i.test(responseText)) {
+      if (data.sources?.length > 0) {
         responseText += `\n\n${t("sources") || "Sources"}: ${data.sources.map(s => `${s.source} (p.${s.page})`).join(", ")}`;
       }
       const botMsg = {

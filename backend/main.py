@@ -970,14 +970,6 @@ async def chat_with_agent(request: ChatRequest):
                     conversation_history.append({"role": role, "content": clean_msg})
             except Exception as hist_err:
                 logging.warning("Failed to load chat history: %s", hist_err)
-            # The chat UI saves the user's message before calling us, so the history can
-            # already end with the question being asked. Drop it so it isn't counted twice.
-            if (
-                conversation_history
-                and conversation_history[-1]["role"] == "user"
-                and conversation_history[-1]["content"].strip() == request.message.strip()
-            ):
-                conversation_history.pop()
 
         # Step 3 — Run LangGraph agent (severity classification → routing)
         agent_result = await asyncio.to_thread(

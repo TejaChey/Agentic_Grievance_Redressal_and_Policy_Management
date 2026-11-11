@@ -349,8 +349,8 @@ const Chatbot = () => {
       const data = await res.json();
       let responseText = data.response || "Sorry, I couldn't find an answer.";
 
-      // Append source citations if available (the agent's reply usually carries them already)
-      if (data.sources && data.sources.length > 0 && !/\n\s*Sources:/i.test(responseText)) {
+      // Append source citations if available
+      if (data.sources && data.sources.length > 0) {
         const sourceList = data.sources
           .map(s => `${s.source} (p.${s.page})`)
           .join(", ");
