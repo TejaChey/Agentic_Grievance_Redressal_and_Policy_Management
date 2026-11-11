@@ -16,7 +16,9 @@ import logging
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Optional
 from supabase import create_client, Client
 # ==============================================================================
@@ -287,6 +289,21 @@ class ComplaintMetadata(BaseModel):
     prefilled_severity: Optional[str] = None
     prefilled_department: Optional[str] = None
     project: Optional[str] = None   # Puravankara project the complaint relates to
+
+    @field_validator("date")
+    @classmethod
+    def _incident_date_not_in_future(cls, v):
+        # Incident date must be a real YYYY-MM-DD that has already happened. Compared with
+        # India's date: the server runs on UTC, which is still "yesterday" until 5:30 am IST.
+        if v is None or not v.strip():
+            return None
+        try:
+            incident = datetime.strptime(v.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError("Incident date must be in YYYY-MM-DD format")
+        if incident > datetime.now(ZoneInfo("Asia/Kolkata")).date():
+            raise ValueError("Incident date can't be in the future")
+        return incident.isoformat()
 
 class SubmitComplaintRequest(BaseModel):
     description: str

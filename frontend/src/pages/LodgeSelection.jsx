@@ -6,6 +6,7 @@ function LodgeSelection() {
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const projectParam = searchParams.get("project") || sessionStorage.getItem("purva_selected_project");
+  // Only the external form has a project picker, so only it gets the project
   const querySuffix = projectParam ? `?project=${encodeURIComponent(projectParam)}` : "";
 
   return (
@@ -30,7 +31,7 @@ function LodgeSelection() {
         
         {/* INTERNAL EMPLOYEES */}
         <div className="col-md-4">
-          <Link to={`/lodge-internal${querySuffix}`} className="text-decoration-none">
+          <Link to="/lodge-internal" className="text-decoration-none">
             <div 
               className="card h-100 border-0 text-center p-5 cursor-pointer tile-card lodge-select-card is-internal"
             >
@@ -48,7 +49,7 @@ function LodgeSelection() {
 
         {/* CONTRACT WORKFORCE */}
         <div className="col-md-4">
-          <Link to={`/lodge-contract${querySuffix}`} className="text-decoration-none">
+          <Link to="/lodge-contract" className="text-decoration-none">
             <div 
               className="card h-100 border-0 text-center p-5 cursor-pointer tile-card lodge-select-card is-contract"
             >

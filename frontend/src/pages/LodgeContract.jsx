@@ -7,6 +7,8 @@ import { apiClient } from "../services/api";
 import FileUpload from "../components/FileUpload";
 import { saveToQueue } from "../services/offlineQueue";
 import "./Lodge.css";
+import { todayLocalISO } from "../utils/dates";
+import { apiErrorMessage } from "../utils/apiError";
 
 function LodgeContract() {
   const navigate = useNavigate();
@@ -15,7 +17,7 @@ function LodgeContract() {
   const [queryRedirect, setQueryRedirect] = useState(null); // set when intent = Query or severity = Low/Policy
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, userDetails } = useAuth();
 
   const [formData, setFormData] = useState({
     workerName: "",
@@ -63,11 +65,13 @@ function LodgeContract() {
        prefilled_severity: location.state?.severity || null,
        prefilled_department: location.state?.department || null,
        metadata: {
-           user_id: formData.isAnonymous ? null : (user?.id || null),
+           // Anonymous hides the name and contact from staff, but the filer still sees it on their dashboard
+           user_id: user?.id || null,
            name: formData.workerName,
-           phone: formData.contactNumber,
-           email: formData.emailAddress || null,
-           location: formData.workSiteLocation,
+           // The form has no contact fields, so use the profile; the backend blanks them if anonymous
+           phone: userDetails?.phone || null,
+           email: user?.email || null,
+           location: `${formData.workSiteLocation} · Contractor: ${formData.contractorCompany}`,
            date: formData.incidentDate,
            department: location.state?.department || "Operations",
            source: location.state?.source || null,
@@ -89,7 +93,7 @@ function LodgeContract() {
       
       if (!submitRes.ok) {
         const body = await submitRes.json().catch(() => ({}));
-        throw new Error(body.detail || `Server error (${submitRes.status})`);
+        throw new Error(apiErrorMessage(body, submitRes.status));
       }
 
       const data = await submitRes.json();
@@ -163,7 +167,7 @@ function LodgeContract() {
 
                   <div className="mb-3">
                     <label className="fw-semibold mb-1">{t("workerName")}</label>
-                    <input type="text" name="workerName" value={formData.workerName} onChange={handleChange} className="form-control" required />
+                    <input type="text" name="workerName" value={formData.workerName} onChange={handleChange} className="form-control" required={!formData.isAnonymous} />
                   </div>
 
                   <div className="mb-3">
@@ -179,7 +183,7 @@ function LodgeContract() {
 
                   <div className="mb-3">
                     <label className="fw-semibold mb-1">{t("incidentDate")}</label>
-                    <input type="date" name="incidentDate" value={formData.incidentDate} onChange={handleChange} className="form-control" required />
+                    <input type="date" name="incidentDate" value={formData.incidentDate} onChange={handleChange} className="form-control" max={todayLocalISO()} required />
                   </div>
 
                   <div className="mb-3">

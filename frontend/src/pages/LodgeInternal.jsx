@@ -7,6 +7,8 @@ import { apiClient } from "../services/api";
 import FileUpload from "../components/FileUpload";
 import { saveToQueue } from "../services/offlineQueue";
 import "./Lodge.css";
+import { todayLocalISO } from "../utils/dates";
+import { apiErrorMessage } from "../utils/apiError";
 
 function LodgeInternal() {
   const navigate = useNavigate();
@@ -15,7 +17,7 @@ function LodgeInternal() {
   const [queryRedirect, setQueryRedirect] = useState(null); // set when intent = Query
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { t, langCode } = useLanguage();
-  const { user } = useAuth();
+  const { user, userDetails } = useAuth();
 
   const [formData, setFormData] = useState({
     employeeId: "",
@@ -63,11 +65,19 @@ function LodgeInternal() {
       prefilled_severity: location.state?.severity || null,
       prefilled_department: location.state?.department || null,
       metadata: {
-        user_id: formData.isAnonymous ? null : (user?.id || null),
-        name: formData.employeeName,
-        phone: formData.contactNumber,
-        email: formData.emailAddress,
-        location: formData.department,
+        // Anonymous hides the name and contact from staff, but the filer still sees it on their dashboard
+        user_id: user?.id || null,
+        // Name and contact come from the profile; the backend blanks them for anonymous filings
+        name: userDetails?.name || null,
+        phone: userDetails?.phone || null,
+        email: user?.email || null,
+        // No columns for department / employee ID, so they ride along in the location text.
+        // The employee ID identifies the filer, so it is left out when filing anonymously.
+        location: [
+          formData.projectLocation,
+          `Dept: ${formData.department}`,
+          !formData.isAnonymous && formData.employeeId ? `Employee ID: ${formData.employeeId}` : null,
+        ].filter(Boolean).join(" · "),
         date: formData.incidentDate,
         department: location.state?.department || "Internal HR",
         source: location.state?.source || null,
@@ -89,7 +99,7 @@ function LodgeInternal() {
 
       if (!submitRes.ok) {
         const body = await submitRes.json().catch(() => ({}));
-        throw new Error(body.detail || `Server error (${submitRes.status})`);
+        throw new Error(apiErrorMessage(body, submitRes.status));
       }
 
       const data = await submitRes.json();
@@ -164,7 +174,7 @@ function LodgeInternal() {
                   <div className="row">
                     <div className="col-md-6 mb-3">
                       <label className="fw-semibold mb-1">{t("employeeId")}</label>
-                      <input type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} className="form-control" placeholder={t("enterEmployeeId")} required />
+                      <input type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} className="form-control" placeholder={t("enterEmployeeId")} required={!formData.isAnonymous} />
                     </div>
                     <div className="col-md-6 mb-3">
                       <label className="fw-semibold mb-1">{t("projectLocation")}</label>
@@ -181,7 +191,7 @@ function LodgeInternal() {
 
                   <div className="mb-3">
                     <label className="fw-semibold mb-1">{t("incidentDate")}</label>
-                    <input type="date" name="incidentDate" value={formData.incidentDate} onChange={handleChange} className="form-control" required />
+                    <input type="date" name="incidentDate" value={formData.incidentDate} onChange={handleChange} className="form-control" max={todayLocalISO()} required />
                   </div>
 
                   <div className="mb-3">

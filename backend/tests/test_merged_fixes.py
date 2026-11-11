@@ -329,3 +329,70 @@ def test_project_is_saved_with_the_location(client, monkeypatch):
                                       "metadata": {"location": "Tower B", "project": "Purva Heritage"}})
     row = fake.ops_for("grievances", "insert")[0][1][0]
     assert row["location"] == "Tower B (Project: Purva Heritage)"
+
+
+# ── Anonymous complaints stay on the filer's own dashboard ──────────────
+
+def test_anonymous_complaint_keeps_owner_but_hides_identity(client, monkeypatch):
+    c, fake, _ = client
+    _classify(monkeypatch, "HIGH")
+    fake.handler = lambda t, ops: [{"grievance_id": "g1"}] if t == "grievances" else []
+    monkeypatch.setattr(main, "run_escalation_agent", MagicMock(), raising=False)
+    c.post("/submit-complaint", json={"description": "My manager harasses me in meetings",
+                                      "metadata": {"user_id": "u-123", "is_anonymous": True, "name": "Asha",
+                                                   "phone": "9999999999", "email": "asha@example.com"}})
+    row = fake.ops_for("grievances", "insert")[0][1][0]
+    # Dashboard.jsx lists tickets by user_id, so the owner must be kept
+    assert row["user_id"] == "u-123" and row["is_anonymous"] is True
+    assert row["submitter_name"] is None and row["contact_phone"] is None and row["contact_email"] is None
+
+
+def test_lodge_forms_send_user_id_even_when_anonymous():
+    pages = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "src", "pages")
+    for name in ("LodgeInternal.jsx", "LodgeContract.jsx", "LodgeExternal.jsx"):
+        src = open(os.path.join(pages, name)).read()
+        assert "isAnonymous ? null" not in src, name
+        assert "user_id: user?.id || null" in src, name
+
+
+# ── Incident date can't be in the future ────────────────────────────────
+
+def _ist_today():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("Asia/Kolkata")).date()
+
+
+def test_future_incident_date_is_rejected(client, monkeypatch):
+    from datetime import timedelta
+    c, fake, _ = client
+    _classify(monkeypatch, "HIGH")
+    tomorrow = (_ist_today() + timedelta(days=1)).isoformat()
+    r = c.post("/submit-complaint", json={"description": "Crane fell on the site road",
+                                          "metadata": {"date": tomorrow}})
+    assert r.status_code == 422
+    assert "future" in r.json()["detail"][0]["msg"]
+    assert not fake.ops_for("grievances", "insert")
+
+
+@pytest.mark.parametrize("value, stored", [
+    ("today", "today"), ("", None), ("2025-01-31", "2025-01-31"),
+])
+def test_past_today_and_empty_dates_are_accepted(client, monkeypatch, value, stored):
+    c, fake, _ = client
+    _classify(monkeypatch, "HIGH")
+    fake.handler = lambda t, ops: [{"grievance_id": "g1"}] if t == "grievances" else []
+    monkeypatch.setattr(main, "run_escalation_agent", MagicMock(), raising=False)
+    if value == "today":
+        value = stored = _ist_today().isoformat()
+    r = c.post("/submit-complaint", json={"description": "Crane fell on the site road",
+                                          "metadata": {"date": value}})
+    assert r.status_code == 200
+    assert fake.ops_for("grievances", "insert")[0][1][0]["incident_date"] == stored
+
+
+def test_badly_formatted_incident_date_is_rejected(client, monkeypatch):
+    c, fake, _ = client
+    _classify(monkeypatch, "HIGH")
+    r = c.post("/submit-complaint", json={"description": "Crane fell", "metadata": {"date": "31/01/2025"}})
+    assert r.status_code == 422 and not fake.ops_for("grievances", "insert")

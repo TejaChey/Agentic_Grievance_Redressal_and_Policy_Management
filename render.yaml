@@ -23,8 +23,6 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: SUPABASE_JWT_SECRET
-        sync: false
       - key: GROQ_API_KEY
         sync: false
       # Vercel site address(es), comma-separated: used for CORS and invite links
@@ -44,10 +42,6 @@ services:
         sync: false
       - key: EMAIL_FROM_NAME
         value: Puravankara GRM
-      - key: SUPER_ADMIN_EMAIL
-        sync: false
-      - key: SUPER_ADMIN_PASSWORD
-        sync: false
       - key: REQUIRE_PHONE_VERIFIED
         value: "false"
       - key: OTP_DEV_MODE

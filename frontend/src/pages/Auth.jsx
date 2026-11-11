@@ -72,10 +72,12 @@ const Auth = () => {
       if (!formData.name) newErrors.name = "Full Name is required.";
       if (!formData.userType) newErrors.userType = "User Type is required.";
       
-      // Internal Email Domain Restriction
-      if (formData.userType === "Internal" && formData.email) {
-        if (!formData.email.toLowerCase().endsWith("@company.com")) {
-          newErrors.email = "Internal registration requires a @company.com email address.";
+      // Internal Email Domain Restriction (set VITE_INTERNAL_EMAIL_DOMAIN, e.g. puravankara.com;
+      // left empty, any email can register as Internal, which suits demos)
+      const internalDomain = (import.meta.env.VITE_INTERNAL_EMAIL_DOMAIN || "").trim().replace(/^@/, "").toLowerCase();
+      if (formData.userType === "Internal" && formData.email && internalDomain) {
+        if (!formData.email.toLowerCase().endsWith(`@${internalDomain}`)) {
+          newErrors.email = `Internal registration requires a @${internalDomain} email address.`;
         }
       }
 

@@ -8,6 +8,8 @@ import FileUpload from "../components/FileUpload";
 import { saveToQueue } from "../services/offlineQueue";
 import { PURVA_CITIES_PROJECTS, PURVA_CITIES, findProjectByNameOrId } from "../config/projectsData";
 import "./Lodge.css";
+import { todayLocalISO } from "../utils/dates";
+import { apiErrorMessage } from "../utils/apiError";
 
 function LodgeExternal() {
   const navigate = useNavigate();
@@ -82,7 +84,8 @@ function LodgeExternal() {
       prefilled_severity: location.state?.severity || null,
       prefilled_department: location.state?.department || null,
       metadata: {
-        user_id: formData.isAnonymous ? null : (user?.id || null),
+        // Anonymous hides the name and contact from staff, but the filer still sees it on their dashboard
+        user_id: user?.id || null,
         name: formData.orgName,
         phone: formData.contactNumber,
         email: formData.emailAddress,
@@ -109,7 +112,7 @@ function LodgeExternal() {
 
       if (!submitRes.ok) {
         const body = await submitRes.json().catch(() => ({}));
-        throw new Error(body.detail || `Server error (${submitRes.status})`);
+        throw new Error(apiErrorMessage(body, submitRes.status));
       }
 
       const data = await submitRes.json();
@@ -321,12 +324,12 @@ function LodgeExternal() {
 
                   <div className="mb-3">
                     <label className="fw-semibold mb-1">{t("orgName")}</label>
-                    <input type="text" name="orgName" value={formData.orgName} onChange={handleChange} className="form-control" required />
+                    <input type="text" name="orgName" value={formData.orgName} onChange={handleChange} className="form-control" required={!formData.isAnonymous} />
                   </div>
 
                   <div className="mb-3">
                     <label className="fw-semibold mb-1">{t("contactNumber")}</label>
-                    <input type="tel" name="contactNumber" value={formData.contactNumber} onChange={handleChange} className="form-control" required />
+                    <input type="tel" name="contactNumber" value={formData.contactNumber} onChange={handleChange} className="form-control" pattern="\+?[0-9 ]{10,15}" title="10-digit mobile number, optionally with +91" required={!formData.isAnonymous} />
                   </div>
 
                   <div className="mb-3">
@@ -342,7 +345,7 @@ function LodgeExternal() {
 
                   <div className="mb-3">
                     <label className="fw-semibold mb-1">{t("incidentDate")}</label>
-                    <input type="date" name="incidentDate" value={formData.incidentDate} onChange={handleChange} className="form-control" required />
+                    <input type="date" name="incidentDate" value={formData.incidentDate} onChange={handleChange} className="form-control" max={todayLocalISO()} required />
                   </div>
 
                   <div className="mb-3">

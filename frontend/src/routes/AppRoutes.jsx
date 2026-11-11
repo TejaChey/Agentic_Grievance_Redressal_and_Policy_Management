@@ -22,6 +22,7 @@ const PolicyAssistant = lazy(() => import("../pages/PolicyAssistant"));
 const Profile = lazy(() => import("../pages/Profile"));
 const PurvaSimulation = lazy(() => import("../pages/PurvaSimulation"));
 const BengaluruResidential = lazy(() => import("../pages/BengaluruResidential"));
+const StakeholderHub = lazy(() => import("../pages/StakeholderHub"));
 const ProjectDetail = lazy(() => import("../pages/ProjectDetail"));
 
 const PageLoader = () => (
@@ -45,7 +46,7 @@ const MainRoutes = () => {
   // Dynamic root element
   const getRootElement = () => {
     if (isAdmin) return <AdminDashboard />;
-    if (isAuthenticated) return <Dashboard />;
+    if (isAuthenticated) return <StakeholderHub />;
     return <Index />;
   };
 
